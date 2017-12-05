@@ -1,0 +1,486 @@
+<project name="artisancq" default="package" basedir="." xmlns:ivy="antlib:org.apache.ivy.ant" xmlns:jacoco="antlib:org.jacoco.ant">
+
+  <!-- set global properties for this build -->
+  <property name="src.dir" value="src"/>
+  <property name="main.src.dir" value="${src.dir}/main"/>
+  <property name="test.src.dir" value="${src.dir}/test"/>
+  <property name="acceptance.src.dir" value="${src.dir}/acceptance"/>
+  <property name="build.dir" value="build"/>
+  <property name="class.dir" value="${build.dir}/classes"/>
+  <property name="jar.dir" value="${build.dir}/jar"/>
+  <property name="package.dir" value="${build.dir}/package"/>
+  <property name="report.dir" value="${build.dir}/reports"/>
+  <property name="main.class.dir" value="${class.dir}/main"/>
+  <property name="test.class.dir" value="${class.dir}/test"/>
+  <property name="acceptance.class.dir" value="${class.dir}/acceptance"/>
+  <property name="lib.dir" value="lib"/>
+  <property name="runtime.lib.dir" value="${lib.dir}/${ant.project.name}"/>
+  <property name="config.dir" value="config"/>
+  <property name="dist.jar.file" value="${jar.dir}/${ant.project.name}.jar"/>
+
+  <property name="ivy.install.version" value="2.4.0"/>
+  <property name="ivy.jar.dir" value="${build.dir}/ivy"/>
+  <property name="ivy.jar.file" value="${ivy.jar.dir}/ivy.jar"/>
+
+  <path id="lib.path">
+    <fileset dir="${lib.dir}" includes="**/*.jar"/>
+  </path>
+
+  <path id="test.lib.path">
+    <fileset dir="${lib.dir}/test" includes="**/*.jar"/>
+  </path>
+
+  <path id="runtime.lib.path">
+    <fileset dir="${runtime.lib.dir}" includes="**/*.jar"/>
+  </path>
+
+  <!-- Give user a chance to override without editing this file -->
+  <!-- (and without typing -D each time it compiles it) -->
+  <!-- <property file="sonarlint.buildproperties" /> -->
+  <!-- <property file="${user.home}/sonarlint.buildproperties" /> -->
+
+  <!-- <property name="bluejext.jar" value="lib/bluejext.jar" /> -->
+  <!-- <property name="sonarlint.jar" value="lib/sonarlink.jar" /> -->
+
+  <!-- <property name="dist.dir" value="target/dist" /> -->
+
+  <!-- <property name="bluej.dir" value="C:/BlueJ" /> -->
+
+  <!-- <property name="extension-version" value="0.1" /> -->
+  <!-- <property name="extension" value="sonarlint-extension-${extension-version}" /> -->
+
+  <!-- <property name="dist.extensions.dir" value="${dist.dir}/${extension}/lib/extensions"/> -->
+  <!-- <property name="dist.docs.dir" value="${dist.dir}/${extension}/docs/extensions/sonarlint"/> -->
+
+  <!-- setup ivy -->
+  <target name="download-ivy">
+    <mkdir dir="${ivy.jar.dir}"/>
+    <get src="http://repo1.maven.org/maven2/org/apache/ivy/ivy/${ivy.install.version}/ivy-${ivy.install.version}.jar" dest="${ivy.jar.file}" usetimestamp="true"/>
+  </target>
+
+  <target name="init-ivy" depends="download-ivy" description="--> initialize ivy">
+    <!--
+    try to load ivy here from local ivy dir, in case the user has not already dropped
+                it into ant's lib dir (note that the latter copy will always take precedence).
+                We will not fail as long as local lib dir exists (it may be empty) and
+                ivy is in at least one of ant's lib dir or the local lib dir.
+    -->
+    <path id="ivy.lib.path">
+      <fileset dir="${ivy.jar.dir}" includes="*.jar"/>
+    </path>
+    <taskdef resource="org/apache/ivy/ant/antlib.xml" uri="antlib:org.apache.ivy.ant" classpathref="ivy.lib.path"/>
+  </target>
+
+  <target name="install" depends="init-ivy" description="Install dependencies">
+    <ivy:resolve/>
+    <ivy:retrieve pattern="${lib.dir}/[conf]/[artifact].[ext]"/>
+  </target>
+
+  <!-- Targets -->
+  <target name="main.compile">
+    <mkdir dir="${main.class.dir}"/>
+    <javac srcdir="${main.src.dir}" destdir="${main.class.dir}" includeantruntime="false" debug="true" debuglevel="lines,vars,source">
+      <classpath>
+        <path refid="runtime.lib.path"/>
+      </classpath>
+    </javac>
+  </target>
+
+  <target name="test.compile" depends="main.compile">
+    <mkdir dir="${test.class.dir}"/>
+    <javac srcdir="${test.src.dir}" destdir="${test.class.dir}" includeantruntime="false" debug="true" debuglevel="lines,vars,source">
+      <classpath>
+        <path refid="lib.path"/>
+        <pathelement location="${main.class.dir}"/>
+      </classpath>
+    </javac>
+  </target>
+
+  <target name="acceptance.compile" depends="main.compile">
+    <mkdir dir="${acceptance.class.dir}"/>
+    <javac srcdir="${acceptance.src.dir}" destdir="${acceptance.class.dir}" includeantruntime="false">
+      <classpath>
+        <path refid="lib.path"/>
+        <pathelement location="${main.class.dir}"/>
+      </classpath>
+    </javac>
+  </target>
+
+  <target name="checkstyle" description="Generates a report of code convention violations.">
+    <taskdef resource="com/puppycrawl/tools/checkstyle/ant/checkstyle-ant-task.properties" classpathref="lib.path"/>
+    <checkstyle config="${config.dir}/checkstyle.xml" failureProperty="checkstyle.failure" failOnViolation="false">
+      <fileset dir="src" includes="**/*.java"/>
+    </checkstyle>
+  </target>
+
+  <target name="pmd" description="Generate report of PMD warnings">
+    <taskdef name="pmd" classname="net.sourceforge.pmd.ant.PMDTask" classpathref="runtime.lib.path"/>
+    <pmd shortFilenames="true">
+      <sourceLanguage name="java" version="1.8"/>
+      <ruleset>java-basic</ruleset>
+      <ruleset>java-codesize</ruleset>
+      <ruleset>java-design</ruleset>
+      <formatter type="text" toConsole="true"/>
+      <fileset dir="${main.src.dir}" />
+    </pmd>
+  </target>
+
+  <target name="coverage" description="Generate test coverage" depends="test.compile">
+    <taskdef uri="antlib:org.jacoco.ant" resource="org/jacoco/ant/antlib.xml" classpathref="lib.path"/>
+    <property name="jacoco.dir" value="${build.dir}/jacoco"/>
+    <mkdir dir="${jacoco.dir}"/>
+    <mkdir dir="${report.dir}/jacoco"/>
+    <jacoco:coverage destfile="${jacoco.dir}/jacoco.exec">
+      <junit printsummary="on" haltonfailure="yes" fork="true" forkmode="once">
+        <classpath>
+          <path refid="lib.path"/>
+          <pathelement location="${main.class.dir}"/>
+          <pathelement location="${test.class.dir}"/>
+        </classpath>
+        <batchtest>
+          <fileset dir="${test.src.dir}" includes="**/*Test.java" />
+        </batchtest>
+      </junit>
+    </jacoco:coverage>
+    <jacoco:report>
+      <executiondata>
+        <file file="${jacoco.dir}/jacoco.exec"/>
+      </executiondata>
+      <structure name="${ant.project.name}">
+        <classfiles>
+          <fileset dir="${class.dir}"/>
+        </classfiles>
+        <sourcefiles encoding="UTF-8">
+          <fileset dir="${src.dir}"/>
+        </sourcefiles>
+      </structure>
+      <html destdir="${report.dir}/jacoco"/>
+      <xml destfile="${report.dir}/jacoco/jacoco.xml"/>
+    </jacoco:report>
+  </target>
+
+  <target name="test" depends="test.compile">
+    <junit haltonfailure="yes" fork="true">
+      <classpath>
+        <path refid="lib.path"/>
+        <pathelement location="${main.class.dir}"/>
+        <pathelement location="${test.class.dir}"/>
+      </classpath>
+      <formatter type="plain" usefile="false" />
+      <batchtest>
+        <fileset dir="${test.src.dir}" includes="**/*Test.java" />
+      </batchtest>
+    </junit>
+  </target>
+
+  <target name="acceptance-test" depends="acceptance.compile">
+    <mkdir dir="${build.dir}/cucumber"/>
+    <java classname="cucumber.api.cli.Main" fork="true" failonerror="false" resultproperty="cucumber.exitstatus">
+      <classpath>
+        <path refid="lib.path"/>
+        <pathelement location="${main.class.dir}"/>
+        <pathelement location="${acceptance.class.dir}"/>
+      </classpath>
+      <arg value="--plugin"/>
+      <arg value="pretty"/>
+      <arg value="--glue"/>
+      <!-- identifies the package (folder) where the cucumber definitions live -->
+      <arg value="edu.msudenver.cukes"/>
+      <!-- identifies the folder where the feature files live (looks in all subfolders) -->
+      <arg value="src/acceptance"/>
+    </java>
+    <!-- writes out information to junit report -->
+    <!-- <junitreport todir="${report.dir}/cucumber/junit.xml">
+      <fileset dir="${build.dir}/cucumber">
+        <include name="cukes.xml"/>
+      </fileset>
+      <report format="frames" todir="${report.dir}/cucumber/junit-report"/>
+    </junitreport> -->
+    <!-- checks our exit status, and determines success or failure -->
+    <fail message="Cucumber failed">
+      <condition>
+        <not>
+          <equals arg1="${cucumber.exitstatus}" arg2="0"/>
+        </not>
+      </condition>
+    </fail>
+  </target>
+
+  <target name="package" depends="main.compile" description="Build the jar and zip">
+    <pathconvert property="build.libs" pathsep=" ">
+      <path>
+        <fileset dir="${runtime.lib.dir}"/>
+      </path>
+      <globmapper from="${basedir}/*" to="*"/>
+    </pathconvert>
+    <jar destfile="${dist.jar.file}" basedir="${main.class.dir}">
+      <manifest>
+        <attribute name="Main-Class" value="edu.msudenver.CodeQualityExtension"/>
+        <attribute name="Class-Path" value="${build.libs}"/>
+      </manifest>
+    </jar>
+    <zip destfile="${package.dir}/${ant.project.name}.zip">
+      <zipfileset dir="${jar.dir}"/>
+      <zipfileset dir="${runtime.lib.dir}" prefix="lib/${ant.project.name}"/>
+    </zip>
+  </target>
+
+  <!-- add classes to generate Javadoc -->
+  <!-- <path id="javadoc.classpath">
+    <pathelement location="${ant.home}/lib/crimson.jar" />
+    <path refid="run.classpath" />
+  </path> -->
+
+  <!-- <path id="build.classpath">
+    <pathelement location="${bluejext.jar}" />
+    <pathelement location="${checkstyle-all.jar}" />
+    <pathelement location="${ant.home}/lib/ant.jar" />
+  </path> -->
+
+  <!-- <path id="run.classpath">
+    <pathelement location="target/tests" />
+    <pathelement location="target/checkstyle" />
+    <path refid="build.classpath" />
+  </path> -->
+
+  <!-- <path id="tests.buildpath">
+    <path refid="run.classpath" />
+  </path> -->
+
+  <!-- <target name="display.classpath" description="Displays the run classpath">
+    <property name="asd" refid="run.classpath" />
+    <echo message="Classpath is ${asd}" />
+  </target> -->
+
+  <!-- -->
+  <!-- Cleanup targets -->
+  <!-- -->
+  <target name="clean">
+    <delete dir="${build.dir}"/>
+  </target>
+
+  <target name="clean-ivy" description="--> clean the ivy installation">
+    <delete dir="${ivy.jar.dir}"/>
+  </target>
+
+  <target name="clean-cache" depends="init-ivy" description="--> clean the ivy cache">
+    <ivy:cleancache/>
+  </target>
+
+  <!-- -->
+  <!-- COMPILE TARGETS -->
+  <!-- -->
+  <!-- <target name="compile.checkstyle"
+          description="Compiles the source code">
+    <mkdir dir="target/checkstyle" />
+    <javac srcdir="src/checkstyle"
+           destdir="target/checkstyle"
+           deprecation="on" debug="on"
+           classpathref="build.classpath">
+     <compilerarg value="-Xlint:unchecked"/>
+    </javac>
+  </target> -->
+
+  <!-- Compiles only the test code. Input files are excluded from
+       compilation, they contain code like assert statements
+       that does not compile on all JDKs -->
+  <!-- <target name="compile.tests" depends="compile.checkstyle"
+          description="Compiles the test code">
+
+    <ivy:cachepath organisation="org.junit" module="junit" revision="4.10" pathid="test.path.id" inline="true"/>
+    <mkdir dir="target/tests" />
+    <depend srcdir="src/tests" destdir="target/tests" closure="yes"/>
+    <javac srcdir="src/tests"
+           destdir="target/tests"
+           deprecation="on" debug="on"
+           classpathref="tests.buildpath" />
+  </target> -->
+
+  <!-- runs a command line version of Checkstyle  -->
+  <!-- <target name="run.checkstyle" depends="compile.tests"
+          description="Runs the command line version on a file">
+    <java classname="com.puppycrawl.tools.checkstyle.plugins.bluej.Main"
+          fork="yes"
+          dir="."
+          classpathref="run.classpath">
+          <sysproperty key="checkstyle.header.file" value="docs/java.header"/>
+      <arg value="-c"/>
+      <arg file="docs/checkstyle_checks.xml"/>
+      <arg value="-r"/>
+      <arg file="src/checkstyle/com/puppycrawl/tools/checkstyle/plugins/bluej"/>
+    </java>
+  </target> -->
+
+  <!-- -->
+  <!-- COMPILE TARGETS -->
+  <!-- -->
+  <!-- <target name="checkstyle.checkstyle" depends="compile.checkstyle"
+          description="Runs checkstyle against the extension's sources">
+    <taskdef name="checkstyle"
+             classname="com.puppycrawl.tools.checkstyle.CheckStyleTask">
+      <classpath refid="run.classpath"/>
+    </taskdef>
+    <delete file="target/cachefile" />
+
+    <property name="checkstyle.pattern.todo" value="NOTHingWillMatCH_-"/>
+    <property name="check.config" location="docs/checkstyle_checks.xml"/>
+    <checkstyle config="${check.config}" failOnViolation="false">
+      <fileset dir="src/checkstyle"
+               includes="**/*.java,**/*.properties"
+               excludes="**/Generated*.java,**/gui/*"/>
+      <formatter type="plain"/>
+      <formatter type="xml" toFile="target/cs_errors.xml"/>
+      <classpath refid="run.classpath"/>
+      <property key="checkstyle.cache.file" file="target/cachefile"/>
+      <property key="checkstyle.header.file" file="docs/java.header"/>
+      <property key="checkstyle.suppressions.file" file="docs/suppressions.xml"/>
+      <property key="checkstyle.importcontrol.file" file="docs/import-control.xml"/>
+      <property key="translation.severity" value="warning"/>
+    </checkstyle>
+  </target> -->
+
+  <!-- -->
+  <!-- DIST TARGETS -->
+  <!-- -->
+  <!-- <target name="build.extension" depends="compile.checkstyle"
+          description="Builds the extension jar file">
+    <mkdir dir="${dist.dir}" />
+    <mkdir dir="${dist.extensions.dir}" />
+    <jar jarfile="${dist.extensions.dir}/${extension}.jar"
+         manifest="config/manifest.mf"
+         update="false">
+      <fileset dir="target/checkstyle"/>
+      <fileset dir="docs">
+        <include name="*.xml"/>
+      </fileset>
+      <zipfileset src="${checkstyle-all.jar}">
+        <exclude name="META-INF/"/>
+      </zipfileset>
+    </jar>
+  </target> -->
+
+  <!-- <target name="build.bindist" depends="build.extension,javadoc"
+          description="Builds the compressed distribution files">
+    <delete dir="${dist.extensions.dir}/checkstyle" />
+    <mkdir dir="${dist.extensions.dir}/checkstyle" />
+    <mkdir dir="${dist.docs.dir}" /> -->
+
+    <!--remove antlr from checkstyle-all jar -->
+    <!--
+    <mkdir dir="${dist.dir}/tmp"/>
+    <unjar src="${checkstyle-all.jar}"
+           dest="${dist.dir}/tmp" />
+    <delete dir="${dist.dir}/tmp/antlr" />
+    <jar jarfile="${dist.extensions.dir}/checkstyle/checkstyle-all.jar"
+         basedir="${dist.dir}/tmp" />
+    <delete dir="${dist.dir}/tmp" />
+    -->
+
+    <!-- copy stuff without filtering -->
+    <!-- <copy todir="${dist.docs.dir}">
+      <fileset dir =".">
+        <include name="LICENSE*"/>
+        <include name="README"/>
+        <include name="RIGHTS.antlr"/>
+        <include name="contrib/**"/>
+        <include name="**/.cvsignore"/>
+        <include name="**/CVS"/>
+      </fileset>
+      <fileset dir="./docs">
+        <include name="**"/>
+        <exclude name="*.xml"/>
+        <exclude name="*.txt"/>
+        <exclude name="java.header"/>
+      </fileset>
+    </copy>
+    <copy todir="${dist.extensions.dir}/checkstyle">
+      <fileset dir="./docs">
+        <include name="*.xml"/>
+        <include name="java.header"/>
+      </fileset>
+      <fileset dir="./lib">
+        <include name="checkstyle*.jar"/>
+      </fileset>
+    </copy> -->
+    <!-- create the final zip & tar/gzip files -->
+    <!-- <zip zipfile="${dist.dir}/checkstyle-extension-${extension-version}.zip">
+      <fileset dir="${dist.dir}/${extension}">
+        <include name="**"/>
+      </fileset>
+    </zip>
+    <tar tarfile="${dist.dir}/checkstyle-extension-${extension-version}.tar" longfile="gnu"
+         basedir="${dist.dir}/${extension}" includes="**" />
+    <gzip zipfile="${dist.dir}/checkstyle-extension-${extension-version}.tar.gz"
+          src="${dist.dir}/checkstyle-extension-${extension-version}.tar" />
+  </target> -->
+
+  <!-- <target name="build.srcdist" depends="checkstyle.checkstyle"
+          description="Builds the compressed source files for distribution">
+    <delete dir="${dist.dir}/checkstyle-extension-src-${extension-version}" />
+    <mkdir dir="${dist.dir}/checkstyle-extension-src-${extension-version}" />
+    <copy todir="${dist.dir}/checkstyle-extension-src-${extension-version}">
+      <fileset dir=".">
+        <include name="LICENSE*"/>
+        <include name="README"/>
+        <include name="TODO"/>
+        <include name="build.xml"/>
+        <include name="config/**"/>
+        <include name="docs/*"/>
+        <include name="${bluejext.jar}"/>
+        <include name="${checkstyle-all.jar}"/>
+        <include name="${checkstyle-optional.jar}"/>
+        <include name="src/**"/>
+        <exclude name="src/tests/**"/>
+      </fileset>
+    </copy> -->
+    <!-- Produce the final distributions -->
+    <!-- <zip zipfile="${dist.dir}/checkstyle-extension-src-${extension-version}.zip">
+      <fileset dir="${dist.dir}">
+        <include name="checkstyle-extension-src-${extension-version}/**"/>
+      </fileset>
+    </zip>
+    <tar tarfile="${dist.dir}/checkstyle-extension-src-${extension-version}.tar" longfile="gnu"
+         basedir="${dist.dir}" includes="checkstyle-extension-src-${extension-version}/**" />
+    <gzip zipfile="${dist.dir}/checkstyle-extension-src-${extension-version}.tar.gz"
+          src="${dist.dir}/checkstyle-extension-src-${extension-version}.tar" />
+  </target> -->
+
+  <!-- <target name="javadoc" depends="compile.checkstyle"
+          description="Creates the javadoc html files">
+    <mkdir dir="docs/api" />
+    <javadoc sourcepath="src/checkstyle" destdir="docs/api"
+             packagenames="com.puppycrawl.tools.checkstyle.*"
+             Windowtitle="Checkstyle Extension API"
+             classpathref="javadoc.classpath"
+             Use="true"
+             Footer="&lt;a target=&quot;_top&quot; href=&quot;./{@docRoot}/../index.html&quot;&gt;Back to the Checkstyle Extension Home Page&lt;/a&gt;">
+      <link href="http://java.sun.com/j2se/1.5.0/docs/api/"/>
+      <link href="http://checkstyle.sourceforge.net/api/"/>
+    </javadoc>
+  </target> -->
+
+  <!-- -->
+  <!-- INSTALL TARGETS -->
+  <!-- -->
+  <!-- <target name="install.extension" depends="build.extension"
+          description="Installs the extension in BlueJ">
+    <copy file="${dist.extensions.dir}/${extension}.jar"
+          todir="${bluej.dir}/lib/extensions" />
+  </target> -->
+
+  <!-- TESTS -->
+  <!-- <target name="build.test.extension" depends="compile.tests"
+          description="Builds the test extension jar file">
+    <mkdir dir="${dist.dir}/tests" />
+    <jar jarfile="${dist.dir}/tests/test2.jar"
+         basedir="target/tests"
+         manifest="config/tests/manifest.mf" />
+  </target> -->
+
+   <!-- <target name="install.test.extension" depends="build.test.extension"
+          description="Installs the test extension in BlueJ">
+    <copy file="${dist.dir}/tests/test.jar"
+          todir="${bluej.dir}/lib/extensions" />
+  </target> -->
+
+</project>

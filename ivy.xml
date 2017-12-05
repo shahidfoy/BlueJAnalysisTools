@@ -1,0 +1,18 @@
+<ivy-module version="2.0">
+  <info organisation="edu.msudenver" module="artisancq"/>
+  <configurations>
+    <conf name="artisancq" description="Runtime analysis tools needed for the extension"/>
+    <conf name="test" description="Required for test only" />
+    <conf name="acceptance" description="Required for acceptance testing only"/>
+  </configurations>
+  <dependencies>
+    <dependency org="junit" name="junit" rev="4.12" conf="test->default"/>
+    <dependency org="com.puppycrawl.tools" name="checkstyle" rev="8.4" conf="test->default"/>
+    <dependency org="org.jacoco" name="jacoco" rev="0.7.9" conf="test->default">
+      <artifact name="jacoco" type="pom" ext="pom"/>
+      <exclude module="org.jacoco.doc"/>
+      <exclude module="org.jacoco.examples"/>
+    </dependency>
+    <dependency org="io.cucumber" name="cucumber-java" rev="2.1.0" conf="acceptance->default"/>
+  </dependencies>
+</ivy-module>
