@@ -101,12 +101,12 @@ once the PMD folder is added to the C:/ directory run commands "ant install" and
 then locate the jar in "build/jar" and place it into bluej "lib/extensions"
 
 For mac users:
-Try to place FINDBUGS folder into root directory
+Try to place spotbugs folder into root directory
 so it should look like this:
 
 "/spotbugs"
 
-and the FINDBUGS bin should look as so:
+and the spotbugs bin should look as so:
 
 "/spotbugs/bin"
 
