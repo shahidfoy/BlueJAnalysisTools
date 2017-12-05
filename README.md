@@ -66,7 +66,7 @@ How to work and install PMD functionality.
 ==============================
 download PMD at https://pmd.github.io/.  Grab the PMD folder and place it in your root directory.  for windows the folder location should look like:
  
-"C:/PMD"
+"C:/pmd"
 
 only works for windows right now.  
 
@@ -77,23 +77,23 @@ For mac users:
 Try to place PMD folder into root directory
 so it should look like this:
 
-"/PMD"
+"/pmd"
 
 Also this only works for one java file at a time. 
 To see it working right click on the java file you would like to inspect and click on "ArtisanCQ->PMD Analysis
 
 
 ============================================
-How to work and install FindBug functionality.
+How to work and install SpotBug functionality.
 ==============================
 download FindBugs at https://sourceforge.net/projects/findbugs/.  Create a FINDBUGS directory in your root folder for windows it should look like:
 
-"C:/FINDBUGS"
+"C:/spotbugs"
 
 once you find a compressed version of findbugs on the website.  Unzip the file and place its contents into the FINDBUGS folder.  for example the findbugs
 bin location should look like this
 
-"C:/FINDBUGS/bin"
+"C:/spotbugs/bin"
 
 only works for windows right now.  
 
@@ -104,11 +104,11 @@ For mac users:
 Try to place FINDBUGS folder into root directory
 so it should look like this:
 
-"/FINDBUGS"
+"/spotbugs"
 
 and the FINDBUGS bin should look as so:
 
-"/FINDBUGS/bin"
+"/spotbugs/bin"
 
 Also this checks all java files that exist in the package. 
 To see it working right click on the java file you would like to inspect and click on "ArtisanCQ->FindBug Analysis
