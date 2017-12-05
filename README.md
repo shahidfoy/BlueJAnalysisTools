@@ -64,7 +64,7 @@ the file and/or folder to the `.svnignore` file and run the command again.
 ============================================
 How to work and install PMD functionality.
 ==============================
-download the workingPMD folder.  Grab the PMD folder and place it in your root directory.  for windows the folder location should look like:
+download PMD at https://pmd.github.io/.  Grab the PMD folder and place it in your root directory.  for windows the folder location should look like:
  
 "C:/PMD"
 
